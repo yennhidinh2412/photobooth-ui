@@ -1,3 +1,5 @@
+"use client"
+
 import CameraComponent from '@/components/camera'
 
 export default function CameraTestPage() {
