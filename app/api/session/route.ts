@@ -39,6 +39,30 @@ function getNetworkIP(): string {
   return 'localhost'
 }
 
+// Global in-memory storage (persists within serverless container lifecycle)
+// This is a workaround for Vercel serverless - sessions will persist as long as the container is warm
+const globalSessions = new Map<string, {
+  photos: string[]
+  timestamp: number
+  filterUsed: string
+  backgroundUsed: string
+}>()
+
+// Cleanup old sessions (older than 2 hours)
+function cleanupOldSessions() {
+  const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000)
+  let deletedCount = 0
+  for (const [sessionId, session] of globalSessions.entries()) {
+    if (session.timestamp < twoHoursAgo) {
+      globalSessions.delete(sessionId)
+      deletedCount++
+    }
+  }
+  if (deletedCount > 0) {
+    console.log(`🧹 Cleaned up ${deletedCount} old sessions. Active: ${globalSessions.size}`)
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { photos, filter, background } = await request.json()
@@ -50,7 +74,18 @@ export async function POST(request: NextRequest) {
     // Generate unique session ID
     const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     
-    console.log(`✅ Session created: ${sessionId} with ${photos.length} photos`)
+    // Store in global memory
+    globalSessions.set(sessionId, {
+      photos,
+      timestamp: Date.now(),
+      filterUsed: filter || 'original',
+      backgroundUsed: background || 'none'
+    })
+    
+    console.log(`✅ Session created: ${sessionId} with ${photos.length} photos. Total: ${globalSessions.size}`)
+    
+    // Cleanup old sessions
+    cleanupOldSessions()
 
     // Build base URL
     const host = request.headers.get('host')
@@ -70,20 +105,11 @@ export async function POST(request: NextRequest) {
       baseUrl = `http://${networkIP}:${port}`
     }
     
-    // Encode session data in URL (base64)
-    const sessionData = {
-      photos,
-      filter: filter || 'original',
-      background: background || 'none',
-      photoCount: photos.length
-    }
-    
-    const encodedData = Buffer.from(JSON.stringify(sessionData)).toString('base64url')
-    const downloadUrl = `${baseUrl}/download/${sessionId}?data=${encodedData}`
+    // Simple URL without encoded data
+    const downloadUrl = `${baseUrl}/download/${sessionId}`
     
     console.log(`🌐 Base URL: ${baseUrl}`)
     console.log(`📱 QR Code URL: ${downloadUrl}`)
-    console.log(`📦 Data size: ${encodedData.length} chars`)
 
     return NextResponse.json({ 
       sessionId,
@@ -97,34 +123,28 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   const sessionId = request.nextUrl.searchParams.get('id')
-  const encodedData = request.nextUrl.searchParams.get('data')
   
-  console.log(`🔍 GET request for session: ${sessionId}`)
+  console.log(`🔍 GET request for session: ${sessionId}. Total sessions: ${globalSessions.size}`)
   
   if (!sessionId) {
     console.log('❌ No session ID provided')
     return NextResponse.json({ error: 'Session ID required' }, { status: 400 })
   }
 
-  if (!encodedData) {
-    console.log('❌ No session data provided')
-    return NextResponse.json({ error: 'Session data not found' }, { status: 404 })
+  const session = globalSessions.get(sessionId)
+  
+  if (!session) {
+    console.log(`❌ Session not found: ${sessionId}`)
+    console.log(`📋 Available sessions: ${Array.from(globalSessions.keys()).join(', ')}`)
+    return NextResponse.json({ error: 'Session not found' }, { status: 404 })
   }
 
-  try {
-    // Decode session data from URL
-    const sessionData = JSON.parse(Buffer.from(encodedData, 'base64url').toString('utf-8'))
-    
-    console.log(`✅ Session found: ${sessionId} with ${sessionData.photos.length} photos`)
-    
-    return NextResponse.json({
-      photos: sessionData.photos,
-      filter: sessionData.filter,
-      background: sessionData.background,
-      photoCount: sessionData.photoCount
-    })
-  } catch (error) {
-    console.error('Error decoding session data:', error)
-    return NextResponse.json({ error: 'Invalid session data' }, { status: 400 })
-  }
+  console.log(`✅ Session found: ${sessionId} with ${session.photos.length} photos`)
+  
+  return NextResponse.json({
+    photos: session.photos,
+    filter: session.filterUsed,
+    background: session.backgroundUsed,
+    photoCount: session.photos.length
+  })
 }
