@@ -46,6 +46,7 @@ const globalSessions = new Map<string, {
   timestamp: number
   filterUsed: string
   backgroundUsed: string
+  captureMode: 'photo' | 'gif' | 'video'
 }>()
 
 // Cleanup old sessions (older than 2 hours)
@@ -65,7 +66,7 @@ function cleanupOldSessions() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { photos, filter, background } = await request.json()
+    const { photos, filter, background, captureMode } = await request.json()
     
     if (!photos || !Array.isArray(photos)) {
       return NextResponse.json({ error: 'Invalid photos data' }, { status: 400 })
@@ -79,10 +80,11 @@ export async function POST(request: NextRequest) {
       photos,
       timestamp: Date.now(),
       filterUsed: filter || 'original',
-      backgroundUsed: background || 'none'
+      backgroundUsed: background || 'none',
+      captureMode: captureMode || 'photo'
     })
     
-    console.log(`✅ Session created: ${sessionId} with ${photos.length} photos. Total: ${globalSessions.size}`)
+    console.log(`✅ Session created: ${sessionId} with ${photos.length} ${captureMode || 'photo'}(s). Total: ${globalSessions.size}`)
     
     // Cleanup old sessions
     cleanupOldSessions()
@@ -139,12 +141,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Session not found' }, { status: 404 })
   }
 
-  console.log(`✅ Session found: ${sessionId} with ${session.photos.length} photos`)
+  console.log(`✅ Session found: ${sessionId} with ${session.photos.length} ${session.captureMode}(s)`)
   
   return NextResponse.json({
     photos: session.photos,
     filter: session.filterUsed,
     background: session.backgroundUsed,
+    captureMode: session.captureMode,
     photoCount: session.photos.length
   })
 }

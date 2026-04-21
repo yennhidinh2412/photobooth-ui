@@ -14,15 +14,6 @@ const nextConfig = {
   output: process.env.BUILD_ELECTRON ? 'export' : undefined,
   trailingSlash: process.env.BUILD_ELECTRON ? true : false,
   
-  // Allow dev access from network IP for mobile testing
-  experimental: {
-    allowedDevOrigins: [
-      '172.16.2.111:3001', '172.16.2.111:3000', // Current network IP
-      '172.16.*', '192.168.*', '10.*',           // Common private network ranges
-      'localhost:*'                              // Localhost with any port
-    ]
-  },
-  
   // Photobooth specific configurations
   env: {
     PHOTOBOOTH_MODE: process.env.PHOTOBOOTH_MODE || 'development',

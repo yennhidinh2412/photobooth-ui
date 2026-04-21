@@ -9,6 +9,7 @@ interface SessionData {
   photos: string[]
   filter: string
   background: string
+  captureMode: 'photo' | 'gif' | 'video'
   photoCount: number
 }
 
@@ -45,7 +46,9 @@ export default function DownloadPage() {
 
   // Mobile-friendly download function
   const downloadImage = async (imageUrl: string, index: number) => {
-    const filename = `photobooth-${sessionId}-photo-${index + 1}.jpg`
+    const captureType = sessionData?.captureMode || 'photo'
+    const extension = captureType === 'video' ? 'webm' : captureType === 'gif' ? 'gif' : 'jpg'
+    const filename = `photobooth-${sessionId}-${captureType}-${index + 1}.${extension}`
     
     // Try modern approach first (works on most mobile browsers)
     try {
@@ -55,12 +58,13 @@ export default function DownloadPage() {
       
       // Try Web Share API first (best for mobile)
       if (navigator.share && navigator.canShare) {
-        const file = new File([blob], filename, { type: 'image/jpeg' })
+        const mimeType = captureType === 'video' ? 'video/webm' : captureType === 'gif' ? 'image/gif' : 'image/jpeg'
+        const file = new File([blob], filename, { type: mimeType })
         if (navigator.canShare({ files: [file] })) {
           await navigator.share({
             files: [file],
-            title: `Ảnh Photobooth ${index + 1}`,
-            text: 'Ảnh từ máy photobooth'
+            title: `${captureType === 'video' ? 'Video' : captureType === 'gif' ? 'GIF' : 'Ảnh'} Photobooth ${index + 1}`,
+            text: `${captureType === 'video' ? 'Video' : captureType === 'gif' ? 'GIF' : 'Ảnh'} từ máy photobooth`
           })
           return
         }
@@ -104,12 +108,15 @@ export default function DownloadPage() {
       if (navigator.share) {
         const response = await fetch(imageUrl)
         const blob = await response.blob()
-        const file = new File([blob], `photo-${index + 1}.jpg`, { type: 'image/jpeg' })
+        const captureType = sessionData?.captureMode || 'photo'
+        const extension = captureType === 'video' ? 'webm' : captureType === 'gif' ? 'gif' : 'jpg'
+        const mimeType = captureType === 'video' ? 'video/webm' : captureType === 'gif' ? 'image/gif' : 'image/jpeg'
+        const file = new File([blob], `${captureType}-${index + 1}.${extension}`, { type: mimeType })
         
         await navigator.share({
           files: [file],
-          title: `Ảnh Photobooth ${index + 1}`,
-          text: 'Ảnh từ máy photobooth'
+          title: `${captureType === 'video' ? 'Video' : captureType === 'gif' ? 'GIF' : 'Ảnh'} Photobooth ${index + 1}`,
+          text: `${captureType === 'video' ? 'Video' : captureType === 'gif' ? 'GIF' : 'Ảnh'} từ máy photobooth`
         })
       } else {
         // Fallback: copy to clipboard or open
@@ -201,22 +208,43 @@ export default function DownloadPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="bg-gradient-to-r from-pink-400 to-purple-400 px-8 py-4 rounded-3xl shadow-lg inline-block mb-4">
-            <h1 className="text-3xl font-bold text-white">📸 Ảnh Photobooth của bạn</h1>
+            <h1 className="text-3xl font-bold text-white">
+              {sessionData?.captureMode === 'photo' && '📸 Ảnh Photobooth của bạn'}
+              {sessionData?.captureMode === 'gif' && '🎬 GIF Photobooth của bạn'}
+              {sessionData?.captureMode === 'video' && '🎥 Video Photobooth của bạn'}
+            </h1>
           </div>
           <p className="text-lg text-gray-600">
-            Tải về {sessionData?.photoCount} ảnh đẹp của bạn
+            {sessionData?.captureMode === 'photo' && `Tải về ${sessionData?.photoCount} ảnh đẹp của bạn`}
+            {sessionData?.captureMode === 'gif' && 'Tải về GIF vui nhộn của bạn'}
+            {sessionData?.captureMode === 'video' && 'Tải về video đáng nhớ của bạn'}
           </p>
         </div>
 
-        {/* Photo Grid */}
+        {/* Photo/GIF/Video Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {sessionData?.photos.map((photo, index) => (
             <div key={index} className="bg-white p-4 rounded-xl shadow-lg">
-              <img 
-                src={photo} 
-                alt={`Photo ${index + 1}`}
-                className="w-full h-40 sm:h-32 object-cover rounded-lg mb-4"
-              />
+              {/* Display based on capture mode */}
+              {sessionData.captureMode === 'video' ? (
+                <video 
+                  src={photo} 
+                  controls
+                  className="w-full h-40 sm:h-32 object-cover rounded-lg mb-4"
+                />
+              ) : sessionData.captureMode === 'gif' ? (
+                <img 
+                  src={photo} 
+                  alt={`GIF ${index + 1}`}
+                  className="w-full h-40 sm:h-32 object-cover rounded-lg mb-4"
+                />
+              ) : (
+                <img 
+                  src={photo} 
+                  alt={`Photo ${index + 1}`}
+                  className="w-full h-40 sm:h-32 object-cover rounded-lg mb-4"
+                />
+              )}
               
               {/* Mobile-optimized buttons */}
               <div className="space-y-2">
@@ -227,7 +255,7 @@ export default function DownloadPage() {
                   size="sm"
                 >
                   <Download className="w-4 h-4 mr-2" />
-                  Tải ảnh {index + 1}
+                  Tải {sessionData.captureMode === 'video' ? 'video' : sessionData.captureMode === 'gif' ? 'GIF' : 'ảnh'} {index + 1}
                 </Button>
                 
                 {/* Mobile-specific actions */}
@@ -264,18 +292,18 @@ export default function DownloadPage() {
             className="px-8 py-4 text-lg sm:text-xl bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white shadow-xl h-14 touch-manipulation"
           >
             <Package className="w-5 h-5 sm:w-6 sm:h-6 mr-3" />
-            Tải tất cả ảnh ({sessionData?.photoCount})
+            Tải tất cả {sessionData?.captureMode === 'video' ? 'video' : sessionData?.captureMode === 'gif' ? 'GIF' : 'ảnh'} ({sessionData?.photoCount})
           </Button>
           
           {/* Mobile instructions */}
           <div className="mt-4 sm:hidden">
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mx-4">
               <p className="text-sm text-amber-700 font-semibold mb-2">
-                📱 Hướng dẫn tải ảnh trên điện thoại:
+                📱 Hướng dẫn tải {sessionData?.captureMode === 'video' ? 'video' : sessionData?.captureMode === 'gif' ? 'GIF' : 'ảnh'} trên điện thoại:
               </p>
               <div className="text-xs text-amber-600 space-y-1 text-left">
-                <p>• <strong>iPhone/iPad:</strong> Bấm "Xem" → Bấm giữ ảnh → "Lưu vào Ảnh"</p>
-                <p>• <strong>Android:</strong> Bấm "Tải" hoặc "Chia sẻ" → Chọn app lưu ảnh</p>
+                <p>• <strong>iPhone/iPad:</strong> Bấm "Xem" → Bấm giữ {sessionData?.captureMode === 'video' ? 'video' : sessionData?.captureMode === 'gif' ? 'GIF' : 'ảnh'} → "Lưu vào {sessionData?.captureMode === 'video' ? 'Video' : 'Ảnh'}"</p>
+                <p>• <strong>Android:</strong> Bấm "Tải" hoặc "Chia sẻ" → Chọn app lưu {sessionData?.captureMode === 'video' ? 'video' : sessionData?.captureMode === 'gif' ? 'GIF' : 'ảnh'}</p>
                 <p>• <strong>Mẹo:</strong> Dùng nút "Chia sẻ" để gửi qua WhatsApp, Telegram...</p>
               </div>
             </div>
@@ -287,8 +315,17 @@ export default function DownloadPage() {
           <div className="bg-white p-4 rounded-xl shadow-lg inline-block">
             <p className="text-sm text-gray-500 mb-2">Thông tin phiên chụp:</p>
             <div className="flex gap-4 text-sm">
-              <span>🎨 Filter: <strong>{sessionData?.filter}</strong></span>
-              <span>🌈 Nền: <strong>{sessionData?.background}</strong></span>
+              <span>
+                {sessionData?.captureMode === 'photo' && '📸 Photo'}
+                {sessionData?.captureMode === 'gif' && '🎬 GIF'}
+                {sessionData?.captureMode === 'video' && '🎥 Video'}
+              </span>
+              {sessionData?.captureMode === 'photo' && (
+                <>
+                  <span>🎨 Filter: <strong>{sessionData?.filter}</strong></span>
+                  <span>🌈 Nền: <strong>{sessionData?.background}</strong></span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -299,12 +336,12 @@ export default function DownloadPage() {
           
           {/* Desktop tips */}
           <div className="hidden sm:block">
-            <p>💻 <strong>Máy tính:</strong> Click chuột phải ảnh → "Lưu ảnh thành..." để tải về</p>
+            <p>💻 <strong>Máy tính:</strong> Click chuột phải {sessionData?.captureMode === 'video' ? 'video' : sessionData?.captureMode === 'gif' ? 'GIF' : 'ảnh'} → "Lưu {sessionData?.captureMode === 'video' ? 'video' : sessionData?.captureMode === 'gif' ? 'GIF' : 'ảnh'} thành..." để tải về</p>
           </div>
           
           {/* Mobile tips */}
           <div className="sm:hidden space-y-1">
-            <p>📱 <strong>iOS:</strong> Bấm "Xem" → Bấm giữ ảnh → "Lưu vào Ảnh"</p>
+            <p>📱 <strong>iOS:</strong> Bấm "Xem" → Bấm giữ {sessionData?.captureMode === 'video' ? 'video' : sessionData?.captureMode === 'gif' ? 'GIF' : 'ảnh'} → "Lưu vào {sessionData?.captureMode === 'video' ? 'Video' : 'Ảnh'}"</p>
             <p>🤖 <strong>Android:</strong> Dùng nút "Tải" hoặc "Chia sẻ"</p>
           </div>
           
