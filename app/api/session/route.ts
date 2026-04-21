@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { networkInterfaces } from 'os'
+import { writeFile, readFile, mkdir } from 'fs/promises'
+import { existsSync } from 'fs'
+import path from 'path'
 
 // Get network IP helper function (for local development)
 function getNetworkIP(): string {
@@ -39,26 +42,45 @@ function getNetworkIP(): string {
   return 'localhost'
 }
 
-// In-memory storage for sessions
-const sessions = new Map<string, {
-  photos: string[]
-  timestamp: number
-  filterUsed: string
-  backgroundUsed: string
-}>()
+// Helper to get temp directory path
+function getTempDir() {
+  // Use /tmp on Vercel (serverless), .temp-photos locally
+  return process.env.VERCEL ? '/tmp' : path.join(process.cwd(), '.temp-photos')
+}
 
-// Cleanup old sessions (older than 2 hours)
-function cleanupOldSessions() {
-  const twoHoursAgo = Date.now() - (2 * 60 * 60 * 1000)
-  let deletedCount = 0
-  for (const [sessionId, session] of sessions.entries()) {
-    if (session.timestamp < twoHoursAgo) {
-      sessions.delete(sessionId)
-      deletedCount++
+// Helper to save session to file
+async function saveSession(sessionId: string, data: any) {
+  try {
+    const tempDir = getTempDir()
+    
+    // Ensure directory exists (locally)
+    if (!process.env.VERCEL && !existsSync(tempDir)) {
+      await mkdir(tempDir, { recursive: true })
     }
+    
+    const filePath = path.join(tempDir, `${sessionId}.json`)
+    await writeFile(filePath, JSON.stringify(data))
+    console.log(`✅ Session saved to file: ${filePath}`)
+  } catch (error) {
+    console.error('Error saving session to file:', error)
   }
-  if (deletedCount > 0) {
-    console.log(`Cleaned up ${deletedCount} old sessions. Active sessions: ${sessions.size}`)
+}
+
+// Helper to load session from file
+async function loadSession(sessionId: string) {
+  try {
+    const tempDir = getTempDir()
+    const filePath = path.join(tempDir, `${sessionId}.json`)
+    
+    if (!existsSync(filePath)) {
+      return null
+    }
+    
+    const data = await readFile(filePath, 'utf-8')
+    return JSON.parse(data)
+  } catch (error) {
+    console.error('Error loading session from file:', error)
+    return null
   }
 }
 
@@ -73,18 +95,17 @@ export async function POST(request: NextRequest) {
     // Generate unique session ID
     const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     
-    // Store session data (keep photos as base64 in memory)
-    sessions.set(sessionId, {
+    // Save session data to file
+    const sessionData = {
       photos,
       timestamp: Date.now(),
       filterUsed: filter || 'original',
       backgroundUsed: background || 'none'
-    })
+    }
+    
+    await saveSession(sessionId, sessionData)
 
-    console.log(`✅ Session created: ${sessionId} with ${photos.length} photos. Total sessions: ${sessions.size}`)
-
-    // Cleanup old sessions
-    cleanupOldSessions()
+    console.log(`✅ Session created: ${sessionId} with ${photos.length} photos`)
 
     // Build base URL
     const host = request.headers.get('host')
@@ -123,14 +144,13 @@ export async function GET(request: NextRequest) {
   const sessionId = request.nextUrl.searchParams.get('id')
   
   console.log(`🔍 GET request for session: ${sessionId}`)
-  console.log(`📊 Total active sessions: ${sessions.size}`)
   
   if (!sessionId) {
     console.log('❌ No session ID provided')
     return NextResponse.json({ error: 'Session ID required' }, { status: 400 })
   }
 
-  const session = sessions.get(sessionId)
+  const session = await loadSession(sessionId)
   
   if (!session) {
     console.log(`❌ Session not found: ${sessionId}`)
