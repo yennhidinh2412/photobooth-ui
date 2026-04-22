@@ -206,21 +206,24 @@ export default function PhotoboothUI() {
     }
   }
 
-  const generateQRCode = async () => {
-    if (capturedPhotos.length === 0) return
+  const generateQRCode = async (gifDataUrl?: string) => {
+    if (capturedPhotos.length === 0 && !gifDataUrl) return
 
     setIsGeneratingQR(true)
     try {
-      // Tạo session với ảnh đã chụp
+      // Nếu có GIF, chỉ gửi GIF. Nếu không, gửi các ảnh đã chọn
+      const photosToSend = gifDataUrl ? [gifDataUrl] : capturedPhotos
+      
+      // Tạo session với ảnh đã chụp hoặc GIF
       const response = await fetch('/api/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          photos: capturedPhotos,
+          photos: photosToSend,
           filter: filters.find(f => f.id === selectedFilter)?.name || 'Nguyên bản',
           background: backgrounds[selectedBackground]?.name || 'Không nền',
-          captureMode: captureMode, // photo hoặc video
-          outputMode: outputMode // photos hoặc gif
+          captureMode: gifDataUrl ? 'gif' : (captureMode === 'video' ? 'video' : 'photo'),
+          outputMode: gifDataUrl ? 'gif' : outputMode
         })
       })
 
@@ -1192,8 +1195,8 @@ export default function PhotoboothUI() {
             filters={filters}
             backgrounds={backgrounds}
             onPrintComplete={() => setCurrentScreen("finish")}
-            onQRGenerate={() => {
-              generateQRCode()
+            onQRGenerate={(gifUrl) => {
+              generateQRCode(gifUrl)
               setCurrentScreen("printConfirm")
             }}
             onBack={() => setCurrentScreen("filterBackground")}

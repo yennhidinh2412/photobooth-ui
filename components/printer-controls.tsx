@@ -15,7 +15,7 @@ interface PrinterControlsProps {
   filters?: Array<{ id: string; filter: string; name: string }>
   backgrounds?: Array<{ name: string; gradient: string }>
   onPrintComplete: () => void
-  onQRGenerate: () => void
+  onQRGenerate: (gifUrl?: string) => void
   onBack: () => void
 }
 
@@ -195,7 +195,7 @@ export default function PrinterControls({
               className="w-full py-4 text-lg border-2 border-pink-300 text-pink-600 hover:bg-pink-50 rounded-xl"
               onClick={() => {
                 // Save GIF to capturedPhotos and generate QR
-                onQRGenerate()
+                onQRGenerate(gifUrl)
               }}
             >
               <QrCode className="mr-2 h-5 w-5" />
