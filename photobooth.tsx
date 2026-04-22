@@ -44,15 +44,16 @@ type Screen =
   | "payment"
   | "countdown"
   | "photoCapture"
-  | "gifCapture"
   | "videoCapture"
   | "photoSelection"
   | "filterBackground"
+  | "outputSelection"
   | "printConfirm"
   | "printControl"
   | "finish"
 
-type CaptureMode = "photo" | "gif" | "video"
+type CaptureMode = "photo" | "video"
+type OutputMode = "photos" | "gif"
 
 interface PricingOption {
   cuts: number
@@ -102,6 +103,7 @@ export default function PhotoboothUI() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("welcome")
   const [selectedMode, setSelectedMode] = useState<"overhead" | "horizontal" | null>(null)
   const [captureMode, setCaptureMode] = useState<CaptureMode>("photo")
+  const [outputMode, setOutputMode] = useState<OutputMode>("photos")
   const [selectedPricing, setSelectedPricing] = useState<PricingOption | null>(null)
   const [countdown, setCountdown] = useState(15)
   const [selectedPhotos, setSelectedPhotos] = useState<number[]>([])
@@ -159,8 +161,6 @@ export default function PhotoboothUI() {
       // Chuyển đến màn hình tương ứng với chế độ chụp
       if (captureMode === 'photo') {
         setCurrentScreen("photoCapture")
-      } else if (captureMode === 'gif') {
-        setCurrentScreen("gifCapture")
       } else if (captureMode === 'video') {
         setCurrentScreen("videoCapture")
       }
@@ -219,7 +219,8 @@ export default function PhotoboothUI() {
           photos: capturedPhotos,
           filter: filters.find(f => f.id === selectedFilter)?.name || 'Nguyên bản',
           background: backgrounds[selectedBackground]?.name || 'Không nền',
-          captureMode: captureMode // Thêm thông tin loại capture
+          captureMode: captureMode, // photo hoặc video
+          outputMode: outputMode // photos hoặc gif
         })
       })
 
@@ -385,72 +386,56 @@ export default function PhotoboothUI() {
           <div className="flex flex-col items-center justify-center h-full space-y-12 p-8">
             <div className="bg-gradient-to-r from-pink-400 to-purple-400 px-12 py-6 rounded-3xl shadow-lg">
               <h2 className="text-4xl font-bold text-white">Chọn chế độ chụp</h2>
-              <p className="text-lg text-pink-100 mt-2 text-center">Photo, GIF hoặc Video?</p>
+              <p className="text-lg text-pink-100 mt-2 text-center">Photo hoặc Video?</p>
             </div>
 
-            <div className="flex space-x-8 max-w-6xl w-full">
+            <div className="flex space-x-12 max-w-4xl w-full justify-center">
               {/* Photo Mode */}
               <div
-                className="bg-white p-8 rounded-3xl shadow-lg cursor-pointer hover:shadow-xl transition-all border-4 border-pink-200 flex-1 transform hover:scale-105"
+                className="bg-white p-10 rounded-3xl shadow-lg cursor-pointer hover:shadow-xl transition-all border-4 border-pink-200 flex-1 max-w-md transform hover:scale-105"
                 onClick={() => {
                   setCaptureMode("photo")
                   setCurrentScreen("mode")
                 }}
               >
                 <div className="text-center space-y-4">
-                  <div className="bg-pink-100 p-6 rounded-full mx-auto w-24 h-24 flex items-center justify-center">
-                    <span className="text-5xl">📸</span>
+                  <div className="bg-pink-100 p-8 rounded-full mx-auto w-32 h-32 flex items-center justify-center">
+                    <span className="text-6xl">📸</span>
                   </div>
-                  <h3 className="text-2xl font-bold text-pink-400">PHOTO</h3>
-                  <p className="text-base text-gray-600">
-                    Chụp ảnh tĩnh truyền thống với nhiều lựa chọn filter và nền đẹp
+                  <h3 className="text-3xl font-bold text-pink-400">PHOTO</h3>
+                  <p className="text-lg text-gray-600">
+                    Chụp nhiều ảnh đẹp với filter và nền
                   </p>
-                  <div className="bg-pink-50 px-4 py-2 rounded-lg">
-                    <p className="text-sm text-pink-600 font-semibold">✨ Phổ biến nhất</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* GIF Mode */}
-              <div
-                className="bg-white p-8 rounded-3xl shadow-lg cursor-pointer hover:shadow-xl transition-all border-4 border-purple-200 flex-1 transform hover:scale-105"
-                onClick={() => {
-                  setCaptureMode("gif")
-                  setCurrentScreen("mode")
-                }}
-              >
-                <div className="text-center space-y-4">
-                  <div className="bg-purple-100 p-6 rounded-full mx-auto w-24 h-24 flex items-center justify-center">
-                    <span className="text-5xl">🎬</span>
-                  </div>
-                  <h3 className="text-2xl font-bold text-purple-400">GIF</h3>
-                  <p className="text-base text-gray-600">
-                    Tạo GIF động 3 giây, vui nhộn và sáng tạo
+                  <p className="text-base text-gray-500">
+                    💡 Có thể tạo GIF từ ảnh sau khi chụp
                   </p>
-                  <div className="bg-purple-50 px-4 py-2 rounded-lg">
-                    <p className="text-sm text-purple-600 font-semibold">🔥 Mới & Hot</p>
+                  <div className="bg-pink-50 px-4 py-3 rounded-lg">
+                    <p className="text-base text-pink-600 font-semibold">✨ Phổ biến nhất</p>
                   </div>
                 </div>
               </div>
 
               {/* Video Mode */}
               <div
-                className="bg-white p-8 rounded-3xl shadow-lg cursor-pointer hover:shadow-xl transition-all border-4 border-red-200 flex-1 transform hover:scale-105"
+                className="bg-white p-10 rounded-3xl shadow-lg cursor-pointer hover:shadow-xl transition-all border-4 border-red-200 flex-1 max-w-md transform hover:scale-105"
                 onClick={() => {
                   setCaptureMode("video")
                   setCurrentScreen("mode")
                 }}
               >
                 <div className="text-center space-y-4">
-                  <div className="bg-red-100 p-6 rounded-full mx-auto w-24 h-24 flex items-center justify-center">
-                    <span className="text-5xl">🎥</span>
+                  <div className="bg-red-100 p-8 rounded-full mx-auto w-32 h-32 flex items-center justify-center">
+                    <span className="text-6xl">🎥</span>
                   </div>
-                  <h3 className="text-2xl font-bold text-red-400">VIDEO</h3>
-                  <p className="text-base text-gray-600">
-                    Quay video 5 giây có âm thanh, lưu khoảnh khắc đáng nhớ
+                  <h3 className="text-3xl font-bold text-red-400">VIDEO</h3>
+                  <p className="text-lg text-gray-600">
+                    Quay video 5 giây có âm thanh
                   </p>
-                  <div className="bg-red-50 px-4 py-2 rounded-lg">
-                    <p className="text-sm text-red-600 font-semibold">🎤 Có âm thanh</p>
+                  <p className="text-base text-gray-500">
+                    🎤 Ghi âm cùng video
+                  </p>
+                  <div className="bg-red-50 px-4 py-3 rounded-lg">
+                    <p className="text-base text-red-600 font-semibold">🔥 Mới & Hot</p>
                   </div>
                 </div>
               </div>
@@ -480,7 +465,7 @@ export default function PhotoboothUI() {
                 className="bg-white p-8 rounded-3xl shadow-lg cursor-pointer hover:shadow-xl transition-shadow border-4 border-pink-200 flex-1"
                 onClick={() => {
                   setSelectedMode("horizontal")
-                  // Nếu là Photo thì đến pricing, GIF/Video thì đến countdown
+                  // Chỉ Photo đi vào pricing, Video đi thẳng countdown
                   if (captureMode === 'photo') {
                     setCurrentScreen("pricing")
                   } else {
@@ -504,7 +489,7 @@ export default function PhotoboothUI() {
                 className="bg-white p-8 rounded-3xl shadow-lg cursor-pointer hover:shadow-xl transition-shadow border-4 border-pink-200 flex-1"
                 onClick={() => {
                   setSelectedMode("overhead")
-                  // Nếu là Photo thì đến pricing, GIF/Video thì đến countdown
+                  // Chỉ Photo đi vào pricing, Video đi thẳng countdown
                   if (captureMode === 'photo') {
                     setCurrentScreen("pricing")
                   } else {
@@ -665,7 +650,6 @@ export default function PhotoboothUI() {
               <h2 className="text-4xl font-bold text-white">Ready Action!</h2>
               <p className="text-lg text-pink-100 mt-2 text-center">
                 {captureMode === 'photo' && `📸 ${selectedMode === 'overhead' ? 'Góc OVERHEAD' : 'Góc NGANG'}`}
-                {captureMode === 'gif' && `🎬 GIF Mode - ${selectedMode === 'overhead' ? 'Góc OVERHEAD' : 'Góc NGANG'}`}
                 {captureMode === 'video' && `🎥 Video Mode - ${selectedMode === 'overhead' ? 'Góc OVERHEAD' : 'Góc NGANG'}`}
               </p>
             </div>
@@ -687,18 +671,6 @@ export default function PhotoboothUI() {
                       </p>
                     </div>
                   )}
-                </>
-              )}
-              {captureMode === 'gif' && (
-                <>
-                  <h3 className="text-3xl font-bold text-gray-800">
-                    🎬 GIF <span className="text-purple-500">3 giây</span>
-                  </h3>
-                  <div className="bg-purple-100 border border-purple-300 rounded-lg p-3 max-w-md mx-auto">
-                    <p className="text-sm text-purple-700">
-                      ✨ Chuẩn bị tạo dáng vui nhộn!
-                    </p>
-                  </div>
                 </>
               )}
               {captureMode === 'video' && (
@@ -729,37 +701,6 @@ export default function PhotoboothUI() {
             }}
             onBack={() => setCurrentScreen("countdown")}
           />
-        )
-
-      case "gifCapture":
-        return (
-          <div className="flex flex-col items-center justify-center h-full p-8">
-            <div className="bg-gradient-to-r from-purple-400 to-pink-400 px-8 py-4 rounded-3xl shadow-lg mb-6">
-              <h2 className="text-3xl font-bold text-white">🎬 Tạo GIF vui nhộn</h2>
-              <p className="text-lg text-purple-100 mt-2 text-center">
-                {selectedMode === 'overhead' ? 'Góc OVERHEAD' : 'Góc NGANG'}
-              </p>
-            </div>
-            
-            <GifCapture
-              onGifCapture={(gifDataUrl) => {
-                setCapturedPhotos([gifDataUrl])
-                setCurrentScreen("printControl")
-              }}
-              duration={3}
-              fps={10}
-              countdown={3}
-            />
-
-            <Button
-              variant="outline"
-              size="lg"
-              className="mt-6 px-6 py-3 text-lg"
-              onClick={() => setCurrentScreen("countdown")}
-            >
-              <ArrowLeft className="mr-2" /> Quay lại
-            </Button>
-          </div>
         )
 
       case "videoCapture":
@@ -1149,15 +1090,30 @@ export default function PhotoboothUI() {
               >
                 <ArrowLeft className="mr-2" /> Quay lại
               </Button>
-            <Button
-              size="lg"
-                className="px-10 py-4 text-xl bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white shadow-xl transform hover:scale-105 transition-all duration-200"
+              
+              {/* Lưu dạng ảnh tĩnh */}
+              <Button
+                size="lg"
+                className="px-8 py-4 text-xl bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white shadow-xl transform hover:scale-105 transition-all duration-200"
                 onClick={() => {
+                  setOutputMode("photos")
                   setCurrentScreen("printControl")
                 }}
               >
-                <Printer className="mr-3" /> In ảnh ngay ✨
-            </Button>
+                <Printer className="mr-3 h-6 w-6" /> Lưu ảnh 📸
+              </Button>
+              
+              {/* Tạo GIF từ ảnh */}
+              <Button
+                size="lg"
+                className="px-8 py-4 text-xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-xl transform hover:scale-105 transition-all duration-200"
+                onClick={() => {
+                  setOutputMode("gif")
+                  setCurrentScreen("printControl")
+                }}
+              >
+                <span className="mr-3 text-2xl">🎬</span> Tạo GIF
+              </Button>
             </div>
           </div>
         )
@@ -1230,6 +1186,11 @@ export default function PhotoboothUI() {
         return (
           <PrinterControls
             photos={selectedPhotos.map(index => capturedPhotos[index])}
+            outputMode={outputMode}
+            selectedFilter={selectedFilter}
+            selectedBackground={selectedBackground}
+            filters={filters}
+            backgrounds={backgrounds}
             onPrintComplete={() => setCurrentScreen("finish")}
             onQRGenerate={() => {
               generateQRCode()
@@ -1253,6 +1214,7 @@ export default function PhotoboothUI() {
                   setCurrentScreen("welcome")
                   setSelectedMode(null)
                   setCaptureMode("photo")
+                  setOutputMode("photos")
                   setSelectedPricing(null)
                   setSelectedPhotos([])
                   setSelectedFilter("original")
